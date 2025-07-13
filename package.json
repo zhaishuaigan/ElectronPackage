@@ -1,0 +1,17 @@
+{
+  "name": "electron-package",
+  "version": "1.0.0",
+  "description": "Electron Package",
+  "main": "main.js",
+  "scripts": {
+    "start": "npx electron .",
+    "dev": "chcp 65001 && npx electron ."
+  },
+  "author": "Shuai",
+  "license": "MIT",
+  "dependencies": {
+    "@electron/asar": "^4.0.0",
+    "decompress-zip": "^0.3.3"
+  },
+  "asar": false
+}
