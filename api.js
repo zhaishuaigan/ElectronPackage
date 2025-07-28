@@ -1,7 +1,7 @@
 module.exports = {
-    openFile: async () => {
+    openFile: async (options = {}) => {
         const { dialog } = require('electron');
-        const { canceled, filePaths } = await dialog.showOpenDialog();
+        const { canceled, filePaths } = await dialog.showOpenDialog(options);
         if (!canceled) {
             return filePaths[0];
         }
@@ -57,75 +57,35 @@ module.exports = {
         fs.writeFileSync(name, content);
         return true;
     },
-    downloadElectron: async (version) => {
-        return new Promise(async (resolve, reject) => {
-            const https = require('https');
-            const fs = require('fs');
-            var path = require('path');
-            var cacheDir = path.dirname(process.execPath);
-            console.log(cacheDir);
-            var name = `electron-${version}-win32-x64.zip`;
-            var filename = `${cacheDir}/${name}`;
-            if (fs.existsSync(filename)) {
-                resolve('ok');
-                return;
-            }
-            var url = `https://cdn.npmmirror.com/binaries/electron/${version}/${name}`;
-            console.log(url);
-            https.get(url, (response) => {
-                if (response.statusCode === 200) {
-                    const fileStream = fs.createWriteStream(filename);
-                    response.pipe(fileStream);
-                    fileStream.on('finish', () => {
-                        fileStream.close();
-                        resolve('ok');
-                    });
-                } else {
-                    resolve(`下载失败，状态码: ${response.statusCode}`);
+
+    copyElectronTo: async (output) => {
+        var fs = require('fs');
+        var path = require('path');
+        var current = path.dirname(global.app.getPath('exe'));
+        await fs.promises.cp(current, output, {
+            recursive: true,
+            filter: (src, dest) => {
+                var filename = src.replace(current, '');
+                if (filename.includes(output)) {
+                    return false;
                 }
-            }).on('error', (err) => {
-                resolve(`请求错误: ${err.message}`);
-            });
 
-        });
+                if (filename.includes('LICENSES.chromium.html')) {
+                    return false;
+                }
 
-    },
+                if (filename.includes('electron-v37.2.1-win32-x64.zip')) {
+                    return false;
+                }
 
-    unzipElectron: async (version, output) => {
-        return new Promise(async (resolve, reject) => {
-            try {
-                process.noAsar = true;
-                const DecompressZip = require('decompress-zip');
-                var fs = require('fs');
-                var path = require('path');
-                var name = `electron-${version}-win32-x64.zip`;
-                var cacheDir = path.dirname(process.execPath);
-                var filename = path.join(cacheDir, name);
-                await fs.promises.rmdir(output, { recursive: true });
-                await fs.promises.mkdir(output);
-                const unzipper = new DecompressZip(filename);
-                unzipper.on('error', function (err) {
-                    console.log('解压过程中发生错误:', err);
-                    resolve('解压过程中发生错误:', err);
-                });
-
-                unzipper.on('extract', function (log) {
-                    console.log('解压完成:', log);
-                    process.noAsar = false;
-                    resolve('ok');
-                });
-                unzipper.on('progress', function (fileIndex, fileCount) {
-                    console.log(`已解压文件 ${fileIndex + 1} / ${fileCount}`);
-                });
-                unzipper.extract({
-                    path: output
-                });
-            } catch (e) {
-                process.noAsar = false;
-                resolve('error: ' + e.message);
+                if (filename.includes('resources\\')) {
+                    return false;
+                }
+                console.log('正在复制文件: ', src);
+                return true;
             }
         });
-
+        return true;
     },
 
     copyProjectCode: async (project, output) => {
@@ -147,11 +107,6 @@ module.exports = {
         return true;
     },
 
-    asarPackage: async (project, output) => {
-        var { createPackage } = require('@electron/asar');
-        await createPackage(project, output);
-        return 'ok';
-    },
     setIcon: async (filename, icon) => {
         return new Promise((resolve, reject) => {
             var path = require('path');

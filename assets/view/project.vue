@@ -20,14 +20,14 @@ export default {
             if (val != '') {
                 setTimeout(() => {
                     this.error = '';
-                }, 10000);
+                }, 15000);
             }
         },
         message: function (val) {
             if (val != '') {
                 setTimeout(() => {
                     this.message = '';
-                }, 10000);
+                }, 15000);
             }
         },
     },
@@ -54,9 +54,31 @@ export default {
         async openProjectDir() {
             this.projectDir = await api.openDir();
             localStorage.setItem('projectDir', this.projectDir);
+            this.outputDir = this.projectDir + '_builder';
+            localStorage.setItem('outputDir', this.outputDir);
+
+            if (await api.hasFile(`${this.projectDir}/icon.ico`)) {
+                this.icon = `${this.projectDir}\\icon.ico`;
+                localStorage.setItem('icon', this.icon);
+            }
+
+            if (await api.hasFile(`${this.projectDir}\\package.json`)) {
+                var config = await api.readJSON(`${this.projectDir}\\package.json`);
+                if (config.projectName) {
+                    this.projectName = config.projectName;
+                    localStorage.setItem('projectName', this.projectName);
+                }
+                return;
+            } else {
+                this.error = "项目目录中没有package.json文件, 无法启动打包!";
+            }
         },
         async openIcon() {
-            this.icon = await api.openFile();
+            this.icon = await api.openFile({
+                filters: [
+                    { name: 'icon', extensions: ['ico'] },
+                ]
+            });
             localStorage.setItem('icon', this.icon);
         },
         async openOutputDir() {
@@ -66,6 +88,7 @@ export default {
         async build() {
             this.error = "";
             this.message = '';
+
             if (!this.projectDir) {
                 this.error = "请选择项目目录";
                 this.loading = false;
@@ -78,6 +101,8 @@ export default {
             }
 
             localStorage.setItem('projectName', this.projectName);
+            // 输出目录追加日期时间
+            var output = this.outputDir + '/version_' + (new Date()).toLocaleString().replace(/[/:]/g, '.');
 
             if (!await api.hasFile(`${this.projectDir}/package.json`)) {
                 this.error = "项目目录中没有package.json文件, 无法启动打包!";
@@ -85,58 +110,34 @@ export default {
                 return;
             }
 
-            var config = await api.readJSON(`${this.projectDir}/package.json`);
-            var version = 'v37.2.1';
-            if (config.devDependencies && config.devDependencies.electron) {
-                version = config.devDependencies.electron.replace('^', '');
-            }
-
             this.loading = true;
 
-            this.message = '正在下载Electron...';
-            var downloadOut = await api.downloadElectron(version);
-            if (downloadOut != 'ok') {
-                this.error = '下载Electron失败：' + downloadOut;
-                this.message = '';
-                this.loading = false;
-                return;
-            }
-            console.log(downloadOut);
+            this.message = '正在复制Electron到输出目录...';
+            await api.copyElectronTo(output);
 
-            this.message = '正在解压Electron...';
-            var unzipOut = await api.unzipElectron(version, this.outputDir);
-            if (unzipOut != 'ok') {
-                this.error = 'Electron解压失败: ' + unzipOut;
-                this.message = '';
-                this.loading = false;
-                return;
-            }
-
-            await api.deleteFile(this.outputDir + '/resources/default_app.asar');
-
-            if (config.asar) {
-                this.message = '打包项目代码中...';
-                var asarOut = await api.asarPackage(this.projectDir, this.outputDir + '/resources/app.asar');
-                if (asarOut != 'ok') {
-                    this.error = '项目代码打包失败: ' + asarOut;
-                    this.message = '';
-                    this.loading = false;
-                    return;
-                }
-            } else {
-                this.message = '复制项目代码中...';
-                await api.copyProjectCode(this.projectDir, this.outputDir + '/resources/app/');
-            }
+            this.message = '复制项目代码中...';
+            await api.copyProjectCode(this.projectDir, output + '/resources/app/');
 
 
             if (this.icon) {
                 this.message = '正在修改程序图标...';
-                await api.setIcon(this.outputDir + '/electron.exe', this.icon);
+                if (await api.hasFile(output + '/electron.exe')) {
+                    await api.setIcon(output + '/electron.exe', this.icon);
+                }
+                if (await api.hasFile(output + '/Electron打包工具.exe')) {
+                    await api.setIcon(output + '/Electron打包工具.exe', this.icon);
+                }
             }
 
             if (this.projectName) {
                 this.message = '正在修改程序文件名...';
-                await api.rename(this.outputDir + '/electron.exe', this.outputDir + '/' + this.projectName + '.exe');
+                if (await api.hasFile(output + '/electron.exe')) {
+                    await api.rename(output + '\\electron.exe', output + '\\' + this.projectName + '.exe');
+                }
+                if (await api.hasFile(output + '/Electron打包工具.exe')) {
+                    await api.rename(output + '\\Electron打包工具.exe', output + '\\' + this.projectName + '.exe');
+                }
+
             }
             this.loading = false;
             this.success = true;
