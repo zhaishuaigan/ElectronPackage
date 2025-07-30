@@ -1,16 +1,14 @@
 {
-  "name": "electron-package",
-  "version": "1.0.0",
-  "description": "Electron Package",
-  "main": "main.js",
-  "scripts": {
-    "start": "npx electron .",
-    "dev": "chcp 65001 && npx electron ."
-  },
-  "author": "Shuai",
-  "license": "MIT",
-  "dependencies": {
-  },
-  "projectName": "Electron打包工具",
-  "asar": false
+    "name": "electron-package",
+    "version": "1.0.0",
+    "description": "Electron Package",
+    "main": "main.js",
+    "scripts": {
+        "start": "npx electron .",
+        "dev": "chcp 65001 && npx electron ."
+    },
+    "author": "Shuai",
+    "license": "MIT",
+    "dependencies": {},
+    "projectName": "Electron打包工具"
 }
